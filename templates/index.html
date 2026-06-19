@@ -4,16 +4,13 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Animal Identifier</title>
-
 <style>
-
 *{
     margin:0;
     padding:0;
     box-sizing:border-box;
     font-family:Arial, sans-serif;
 }
-
 body{
     min-height:100vh;
     background:linear-gradient(135deg,#4facfe,#00f2fe);
@@ -22,7 +19,6 @@ body{
     align-items:center;
     padding:20px;
 }
-
 .container{
     background:white;
     width:90%;
@@ -32,23 +28,19 @@ body{
     box-shadow:0 10px 30px rgba(0,0,0,0.2);
     text-align:center;
 }
-
 h1{
     color:#333;
     margin-bottom:20px;
 }
-
 .upload-box{
     border:2px dashed #4facfe;
     padding:25px;
     border-radius:15px;
     margin-bottom:20px;
 }
-
 input[type=file]{
     margin-top:10px;
 }
-
 button{
     margin-top:20px;
     padding:12px 25px;
@@ -60,15 +52,16 @@ button{
     cursor:pointer;
     transition:0.3s;
 }
-
 button:hover{
     background:#2196f3;
 }
-
+button:disabled{
+    background:#a0c8f0;
+    cursor:not-allowed;
+}
 .result{
     margin-top:25px;
 }
-
 .result img{
     width:300px;
     max-width:100%;
@@ -76,80 +69,103 @@ button:hover{
     margin-top:15px;
     box-shadow:0 5px 15px rgba(0,0,0,0.2);
 }
-
 .animal{
     color:#2196f3;
     font-size:28px;
     margin-top:10px;
 }
-
 .confidence{
     font-size:20px;
     color:green;
     margin-top:10px;
 }
-
 .info{
     margin-top:15px;
     color:#555;
     line-height:1.6;
 }
-
 .footer{
     margin-top:25px;
     color:gray;
     font-size:14px;
 }
-
 </style>
 </head>
-
 <body>
-
 <div class="container">
-
     <h1>🦁 Animal Identifier Using AI</h1>
-
-    <form action="/predict" method="POST" enctype="multipart/form-data">
-
+    <form action="/predict" method="POST" enctype="multipart/form-data" id="uploadForm">
         <div class="upload-box">
             <h3>Select an Animal Image</h3>
-            <input type="file" name="image" required>
+            <input type="file" name="image" id="fileInput" accept="image/*" required>
         </div>
-
-        <button type="submit">
+        <button type="submit" id="submitBtn">
             Identify Animal
         </button>
-
     </form>
-
     {% if animal %}
-
     <div class="result">
-
         <h2 class="animal">
             {{ animal|capitalize }}
         </h2>
-
         <div class="confidence">
             Confidence: {{ confidence }}%
         </div>
-
         <img src="{{ image_path }}" alt="Animal">
-
         <p class="info">
             {{ info }}
         </p>
-
     </div>
-
     {% endif %}
-
     <div class="footer">
         Animal Identification System using Deep Learning
     </div>
-
 </div>
 
+<script>
+document.getElementById('uploadForm').addEventListener('submit', function (e) {
+    const fileInput = document.getElementById('fileInput');
+    const file = fileInput.files[0];
+    if (!file) return;
+
+    e.preventDefault();
+
+    const submitBtn = document.getElementById('submitBtn');
+    submitBtn.disabled = true;
+    submitBtn.textContent = 'Processing...';
+
+    const reader = new FileReader();
+    reader.onload = function (event) {
+        const img = new Image();
+        img.onload = function () {
+            const maxDim = 1024;
+            let { width, height } = img;
+
+            if (width > height && width > maxDim) {
+                height = Math.round(height * (maxDim / width));
+                width = maxDim;
+            } else if (height >= width && height > maxDim) {
+                width = Math.round(width * (maxDim / height));
+                height = maxDim;
+            }
+
+            const canvas = document.createElement('canvas');
+            canvas.width = width;
+            canvas.height = height;
+            canvas.getContext('2d').drawImage(img, 0, 0, width, height);
+
+            canvas.toBlob(function (blob) {
+                const resizedFile = new File([blob], 'upload.jpg', { type: 'image/jpeg' });
+                const dataTransfer = new DataTransfer();
+                dataTransfer.items.add(resizedFile);
+                fileInput.files = dataTransfer.files;
+                e.target.submit();
+            }, 'image/jpeg', 0.8);
+        };
+        img.src = event.target.result;
+    };
+    reader.readAsDataURL(file);
+});
+</script>
 </body>
 </html>
