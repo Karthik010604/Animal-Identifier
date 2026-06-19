@@ -1,34 +1,19 @@
 from flask import Flask, render_template, request
 import numpy as np
 import os
-
 from PIL import Image
-
-from tensorflow.keras.models import load_model
-from tensorflow.keras.applications.mobilenet_v2 import preprocess_input
+from ai_edge_litert.interpreter import Interpreter
 
 app = Flask(__name__)
 
-# Load model
-model = load_model(
-    "model/animal_model.keras",
-    custom_objects={
-        "preprocess_input": preprocess_input
-    },
-    compile=False
-)
+interpreter = Interpreter(model_path="model/animal_model.tflite")
+interpreter.allocate_tensors()
+input_details = interpreter.get_input_details()
+output_details = interpreter.get_output_details()
 
 class_names = [
-    "butterfly",
-    "cat",
-    "cow",
-    "dog",
-    "elephant",
-    "hen",
-    "horse",
-    "sheep",
-    "spider",
-    "squirrel"
+    "butterfly", "cat", "cow", "dog", "elephant",
+    "hen", "horse", "sheep", "spider", "squirrel"
 ]
 
 animal_info = {
@@ -44,55 +29,37 @@ animal_info = {
     "squirrel": "Squirrels are tree-dwelling rodents."
 }
 
-
 @app.route("/")
 def home():
     return render_template("index.html")
 
-
 @app.route("/predict", methods=["POST"])
 def predict():
-
     if "image" not in request.files:
         return "No image uploaded"
 
     file = request.files["image"]
-
     if file.filename == "":
         return "No image selected"
 
     os.makedirs("static/uploads", exist_ok=True)
-
-    filepath = os.path.join(
-        "static/uploads",
-        file.filename
-    )
-
+    filepath = os.path.join("static/uploads", file.filename)
     file.save(filepath)
 
     img = Image.open(filepath)
     img = img.convert("RGB")
     img = img.resize((224, 224))
-
-    img_array = np.array(img)
+    img_array = np.array(img).astype(np.float32)
     img_array = np.expand_dims(img_array, axis=0)
 
-    # Model already contains preprocess_input
-    predictions = model.predict(img_array)
+    interpreter.set_tensor(input_details[0]["index"], img_array)
+    interpreter.invoke()
+    predictions = interpreter.get_tensor(output_details[0]["index"])
 
     predicted_index = np.argmax(predictions)
-
     animal = class_names[predicted_index]
-
-    confidence = round(
-        float(np.max(predictions)) * 100,
-        2
-    )
-
-    info = animal_info.get(
-        animal,
-        "Information unavailable."
-    )
+    confidence = round(float(np.max(predictions)) * 100, 2)
+    info = animal_info.get(animal, "Information unavailable.")
 
     return render_template(
         "index.html",
@@ -101,7 +68,6 @@ def predict():
         info=info,
         image_path=filepath
     )
-
 
 if __name__ == "__main__":
     app.run(debug=True)
