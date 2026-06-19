@@ -2,25 +2,27 @@ from flask import Flask, render_template, request
 import numpy as np
 import os
 from PIL import Image
-import tensorflow as tf
 from tensorflow.keras.models import load_model
 
 app = Flask(__name__)
 
 # -----------------------------
-# Load model safely
+# SAFE MODEL LOADING (IMPORTANT)
 # -----------------------------
 MODEL_PATH = "model/animal_model.keras"
 
+model = None
+
 try:
     model = load_model(MODEL_PATH, compile=False)
-    print("Model loaded successfully")
+    print("✅ Model loaded successfully")
 except Exception as e:
-    print("Model loading failed:", e)
+    print("❌ Model loading failed:", e)
     model = None
 
+
 # -----------------------------
-# Class labels
+# CLASS LABELS
 # -----------------------------
 class_names = [
     "butterfly",
@@ -35,8 +37,9 @@ class_names = [
     "squirrel"
 ]
 
+
 # -----------------------------
-# Info dictionary
+# ANIMAL INFO
 # -----------------------------
 animal_info = {
     "dog": "Dogs are loyal domestic animals.",
@@ -51,18 +54,24 @@ animal_info = {
     "squirrel": "Squirrels are tree-dwelling rodents."
 }
 
+
 # -----------------------------
-# Routes
+# HOME PAGE
 # -----------------------------
 @app.route("/")
 def home():
     return render_template("index.html")
 
 
+# -----------------------------
+# PREDICTION ROUTE
+# -----------------------------
 @app.route("/predict", methods=["POST"])
 def predict():
+
+    # If model failed to load, stop safely
     if model is None:
-        return "Model not loaded. Check server logs."
+        return "Model is not loaded on server. Check deployment logs."
 
     if "image" not in request.files:
         return "No image uploaded"
@@ -78,17 +87,17 @@ def predict():
     file.save(filepath)
 
     # -----------------------------
-    # Image preprocessing
+    # IMAGE PROCESSING
     # -----------------------------
     img = Image.open(filepath).convert("RGB")
     img = img.resize((224, 224))
 
     img_array = np.array(img)
     img_array = np.expand_dims(img_array, axis=0)
-    img_array = img_array / 255.0   # safer normalization
+    img_array = img_array / 255.0
 
     # -----------------------------
-    # Prediction
+    # PREDICTION
     # -----------------------------
     predictions = model.predict(img_array)
 
@@ -109,7 +118,7 @@ def predict():
 
 
 # -----------------------------
-# Render-compatible server start
+# RENDER PORT FIX
 # -----------------------------
 if __name__ == "__main__":
     port = int(os.environ.get("PORT", 10000))
