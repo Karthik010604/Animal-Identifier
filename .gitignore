@@ -1,0 +1,13 @@
+.venv/
+dataset/
+__pycache__/
+*.pyc
+.vscode/
+.idea/
+
+static/*.jpg
+static/*.jpeg
+static/*.png
+
+.DS_Store
+Thumbs.db
